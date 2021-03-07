@@ -5,6 +5,23 @@ import argparse
 import imutils
 import time
 import cv2
+import numpy as np
+
+optical_flow_sw = False
+
+def draw_flow(im, flow, step=128):
+    h, w = im.shape[:2]
+    y, x = np.mgrid[step/2:h:step, step/2:w:step].reshape(2,-1).astype(int)
+    fx, fy = flow[y,x].T
+
+    lines = np.vstack([x,y,x+fx, y+fy]).T.reshape(-1,2,2)
+    lines = np.int32(lines)
+
+    vis = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)
+    for (x1,y1) ,(x2,y2) in lines:
+        cv2.line(vis, (x1,y1), (x2, y2), (0,255,0), 1)
+        cv2.circle(vis, (x1,y1),1,(0,255,0),-1)
+    return vis
 
 # construct the argument parser and parse the arguments
 ap = argparse.ArgumentParser()
@@ -54,6 +71,13 @@ else:
 # initialize the FPS throughput estimator
 fps = None
 fps = FPS().start()
+frames = []
+
+if optical_flow_sw:
+    frame = vs.read()
+    frame = frame[1] if args.get("video", False) else frame
+    frame = imutils.resize(frame, width=1600)
+    prev_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
 # loop over frames from the video stream
 while True:
@@ -66,8 +90,9 @@ while True:
         break
     # resize the frame (so we can process it faster) and grab the
     # frame dimensions
-    frame = imutils.resize(frame, width=1200)
+    frame = imutils.resize(frame, width=1600)
     (H, W) = frame.shape[:2]
+    frames.append(frame)
     fps.update()
     fps.stop()
     # initialize the set of information we'll be displaying on
@@ -94,8 +119,17 @@ while True:
         text = "ID {}".format(objectIDs[objectID-1])
         cv2.putText(frame, text, (x,y),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
-    # show the output frame
-    cv2.imshow("Frame", frame)
+    
+
+    if optical_flow_sw:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        flow = cv2.calcOpticalFlowFarneback(prev_gray, gray, None, 0.5,3,15,3,5,1.2,0)
+        prev_gray = gray
+        # show the output frame
+        cv2.imshow("Frame", draw_flow(gray, flow))
+    else:
+        cv2.imshow("Frame", frame)
+
     key = cv2.waitKey(100) & 0xFF
     # if the 's' key is selected, we are going to "select" a bounding
     # box to track
@@ -113,6 +147,7 @@ while True:
     # if the `q` key was pressed, break from the loop
     elif key == ord("q"):
         break
+
     # key == ord("d"):
 #if we are using a webcam, release the pointer
 if not args.get("video", False):
@@ -122,3 +157,7 @@ else:
     vs.release()
 # close all windows
 cv2.destroyAllWindows()
+
+frames = np.array(frames)
+print(frames.shape)
+

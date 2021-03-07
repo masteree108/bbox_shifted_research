@@ -66,7 +66,7 @@ while True:
         break
     # resize the frame (so we can process it faster) and grab the
     # frame dimensions
-    frame = imutils.resize(frame, width=500)
+    frame = imutils.resize(frame, width=1200)
     (H, W) = frame.shape[:2]
     fps.update()
     fps.stop()
@@ -96,7 +96,7 @@ while True:
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
     # show the output frame
     cv2.imshow("Frame", frame)
-    key = cv2.waitKey(1) & 0xFF
+    key = cv2.waitKey(100) & 0xFF
     # if the 's' key is selected, we are going to "select" a bounding
     # box to track
     if key == ord("s"):
